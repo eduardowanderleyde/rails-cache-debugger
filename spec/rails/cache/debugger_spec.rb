@@ -96,6 +96,49 @@ RSpec.describe Rails::Cache::Debugger do
       expect(result).to eq("new_value")
     end
   end
+
+  context "when the cache store raises an exception" do
+    let(:broken_cache) do
+      Class.new do
+        def read(*)
+          raise "Cache unavailable"
+        end
+        def write(*)
+          raise "Cache unavailable"
+        end
+        def delete(*)
+          raise "Cache unavailable"
+        end
+        def exist?(*)
+          raise "Cache unavailable"
+        end
+        def fetch(*)
+          raise "Cache unavailable"
+        end
+      end.new
+    end
+    let(:debugger) { described_class.new(broken_cache) }
+
+    it "propagates exception on read" do
+      expect { debugger.read("key") }.to raise_error("Cache unavailable")
+    end
+
+    it "propagates exception on write" do
+      expect { debugger.write("key", "value") }.to raise_error("Cache unavailable")
+    end
+
+    it "propagates exception on delete" do
+      expect { debugger.delete("key") }.to raise_error("Cache unavailable")
+    end
+
+    it "propagates exception on exist?" do
+      expect { debugger.exist?("key") }.to raise_error("Cache unavailable")
+    end
+
+    it "propagates exception on fetch" do
+      expect { debugger.fetch("key") { "value" } }.to raise_error("Cache unavailable")
+    end
+  end
 end
 
 RSpec.describe Rails::Cache::Debugger::Subscriber do

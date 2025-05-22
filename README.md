@@ -1,39 +1,96 @@
-# Rails::Cache::Debugger
+# Rails Cache Debugger
 
-TODO: Delete this and the text below, and describe your gem
-
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/rails/cache/debugger`. To experiment with that code, run `bin/console` for an interactive prompt.
+A gem to help debug Rails cache operations by providing visibility into cache hits, misses, writes, and deletes.
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+Add this line to your application's Gemfile:
 
-Install the gem and add to the application's Gemfile by executing:
+```ruby
+gem 'rails-cache-debugger'
+```
 
-    $ bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+And then execute:
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+```bash
+bundle install
+```
 
-    $ gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+Or install it yourself as:
+
+```bash
+gem install rails-cache-debugger
+```
 
 ## Usage
 
-TODO: Write usage instructions here
+### Basic Usage
+
+```ruby
+# Configure the debugger (optional)
+Rails::Cache::Debugger.configure do |config|
+  config.enabled = true
+  config.log_events = [
+    "cache_read.active_support",
+    "cache_write.active_support",
+    "cache_fetch_hit.active_support"
+  ]
+end
+
+# Use the debugger
+cache = Rails.cache
+debugger = Rails::Cache::Debugger.new(cache)
+
+# Your cache operations will be automatically logged
+debugger.write("key", "value")
+debugger.read("key")
+debugger.fetch("key") { "value" }
+```
+
+### Output Example
+
+```
+[CacheDebugger] WRITE key: key (1.23ms)
+[CacheDebugger] HIT key: key (0.45ms)
+[CacheDebugger] FETCH_HIT key: key (0.67ms)
+```
+
+### Available Operations
+
+The debugger supports all standard Rails cache operations:
+
+- `read(key, **options)`
+- `write(key, value, **options)`
+- `delete(key, **options)`
+- `exist?(key, **options)`
+- `fetch(key, **options) { block }`
+
+### Configuration Options
+
+```ruby
+Rails::Cache::Debugger.configure do |config|
+  # Enable/disable the debugger
+  config.enabled = true
+
+  # Configure which events to log
+  config.log_events = [
+    "cache_read.active_support",
+    "cache_write.active_support",
+    "cache_fetch_hit.active_support"
+  ]
+end
+```
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests.
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+To install this gem onto your local machine, run `bundle exec rake install`.
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/rails-cache-debugger. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/rails-cache-debugger/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at <https://github.com/eduardowanderleyde/rails-cache-debugger>.
 
 ## License
 
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the Rails::Cache::Debugger project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/rails-cache-debugger/blob/main/CODE_OF_CONDUCT.md).
