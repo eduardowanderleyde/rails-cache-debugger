@@ -9,7 +9,8 @@ Gem::Specification.new do |spec|
   spec.email = ["wanderley.eduardo@gmail.com"]
 
   spec.summary = "A gem to help debug Rails cache operations"
-  spec.description = "Provides visibility into Rails cache operations by logging cache hits, misses, writes, and deletes"
+  spec.description = "Provides visibility into Rails cache operations by logging cache hits, misses, writes, "
+  spec.description += "and deletes"
   spec.homepage = "https://github.com/yourusername/rails-cache-debugger"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.0.0"
@@ -30,4 +31,5 @@ Gem::Specification.new do |spec|
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
+  spec.metadata["rubygems_mfa_required"] = "true"
 end

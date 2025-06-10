@@ -6,94 +6,89 @@ RSpec.describe Rails::Cache::Debugger do
   let(:cache) { ActiveSupport::Cache::MemoryStore.new }
   let(:debugger) { described_class.new(cache) }
 
+  before do
+    allow(debugger).to receive(:log_cache_event)
+  end
+
   describe "#read" do
     it "logs cache miss when key doesn't exist" do
-      expect(debugger).to receive(:log_cache_event).with(
+      debugger.read("test_key")
+      expect(debugger).to have_received(:log_cache_event).with(
         event: "cache_read.miss",
         key: "test_key",
         value: nil,
         duration: kind_of(Float)
       )
-
-      debugger.read("test_key")
     end
 
     it "logs cache hit when key exists" do
       cache.write("test_key", "test_value")
-      
-      expect(debugger).to receive(:log_cache_event).with(
+      debugger.read("test_key")
+      expect(debugger).to have_received(:log_cache_event).with(
         event: "cache_read.hit",
         key: "test_key",
         value: "test_value",
         duration: kind_of(Float)
       )
-
-      debugger.read("test_key")
     end
   end
 
   describe "#write" do
     it "logs cache write event" do
-      expect(debugger).to receive(:log_cache_event).with(
+      debugger.write("test_key", "test_value")
+      expect(debugger).to have_received(:log_cache_event).with(
         event: "cache_write",
         key: "test_key",
         value: "test_value",
         duration: kind_of(Float)
       )
-
-      debugger.write("test_key", "test_value")
     end
   end
 
   describe "#delete" do
     it "logs cache delete event" do
-      expect(debugger).to receive(:log_cache_event).with(
+      debugger.delete("test_key")
+      expect(debugger).to have_received(:log_cache_event).with(
         event: "cache_delete",
         key: "test_key",
         duration: kind_of(Float)
       )
-
-      debugger.delete("test_key")
     end
   end
 
   describe "#exist?" do
     it "logs cache exist check" do
-      expect(debugger).to receive(:log_cache_event).with(
+      debugger.exist?("test_key")
+      expect(debugger).to have_received(:log_cache_event).with(
         event: "cache_exist",
         key: "test_key",
         exists: false,
         duration: kind_of(Float)
       )
-
-      debugger.exist?("test_key")
     end
   end
 
   describe "#fetch" do
     it "logs cache fetch hit" do
       cache.write("test_key", "test_value")
-      
-      expect(debugger).to receive(:log_cache_event).with(
+      debugger.fetch("test_key", "new_value")
+      expect(debugger).to have_received(:log_cache_event).with(
         event: "cache_fetch.hit",
         key: "test_key",
         value: "test_value",
         duration: kind_of(Float)
       )
-
-      debugger.fetch("test_key") { "new_value" }
     end
 
     it "logs cache fetch miss and executes block" do
-      expect(debugger).to receive(:log_cache_event).with(
+      result = debugger.fetch("test_key", "new_value")
+      expect(result).to eq("new_value")
+      expect(debugger).to have_received(:log_cache_event).with(
         event: "cache_fetch.miss",
         key: "test_key",
         value: "new_value",
         duration: kind_of(Float)
       )
-
-      result = debugger.fetch("test_key") { "new_value" }
-      expect(result).to eq("new_value")
     end
   end
 
@@ -103,15 +98,19 @@ RSpec.describe Rails::Cache::Debugger do
         def read(*)
           raise "Cache unavailable"
         end
+
         def write(*)
           raise "Cache unavailable"
         end
+
         def delete(*)
           raise "Cache unavailable"
         end
+
         def exist?(*)
           raise "Cache unavailable"
         end
+
         def fetch(*)
           raise "Cache unavailable"
         end
@@ -136,7 +135,7 @@ RSpec.describe Rails::Cache::Debugger do
     end
 
     it "propagates exception on fetch" do
-      expect { debugger.fetch("key") { "value" } }.to raise_error("Cache unavailable")
+      expect { debugger.fetch("key", "value") }.to raise_error("Cache unavailable")
     end
   end
 end
@@ -146,11 +145,11 @@ RSpec.describe Rails::Cache::Debugger::Subscriber do
   let(:start_time) { Time.now }
   let(:end_time) { start_time + 0.00123 } # 1.23ms
 
-  it "formats cache read hit" do
-    expect(Rails::Cache::Debugger).to receive(:log).with(
-      "HIT key: test_key (1.23ms)"
-    )
+  before do
+    allow(Rails::Cache::Debugger).to receive(:log)
+  end
 
+  it "formats cache read hit" do
     subscriber.call(
       "cache_read.active_support",
       start_time,
@@ -158,13 +157,12 @@ RSpec.describe Rails::Cache::Debugger::Subscriber do
       "id",
       { key: "test_key", hit: true }
     )
+    expect(Rails::Cache::Debugger).to have_received(:log).with(
+      "HIT key: test_key (1.23ms)"
+    )
   end
 
   it "formats cache read miss" do
-    expect(Rails::Cache::Debugger).to receive(:log).with(
-      "MISS key: test_key (1.23ms)"
-    )
-
     subscriber.call(
       "cache_read.active_support",
       start_time,
@@ -172,13 +170,12 @@ RSpec.describe Rails::Cache::Debugger::Subscriber do
       "id",
       { key: "test_key", hit: false }
     )
+    expect(Rails::Cache::Debugger).to have_received(:log).with(
+      "MISS key: test_key (1.23ms)"
+    )
   end
 
   it "formats cache write" do
-    expect(Rails::Cache::Debugger).to receive(:log).with(
-      "WRITE key: test_key (1.23ms)"
-    )
-
     subscriber.call(
       "cache_write.active_support",
       start_time,
@@ -186,19 +183,21 @@ RSpec.describe Rails::Cache::Debugger::Subscriber do
       "id",
       { key: "test_key" }
     )
+    expect(Rails::Cache::Debugger).to have_received(:log).with(
+      "WRITE key: test_key (1.23ms)"
+    )
   end
 
   it "formats cache fetch hit" do
-    expect(Rails::Cache::Debugger).to receive(:log).with(
-      "FETCH_HIT key: test_key (1.23ms)"
-    )
-
     subscriber.call(
       "cache_fetch_hit.active_support",
       start_time,
       end_time,
       "id",
       { key: "test_key" }
+    )
+    expect(Rails::Cache::Debugger).to have_received(:log).with(
+      "FETCH_HIT key: test_key (1.23ms)"
     )
   end
 end
@@ -208,11 +207,8 @@ RSpec.describe Rails::Cache::Debugger::Configuration do
 
   it "has default values" do
     expect(config.enabled).to be true
-    expect(config.log_events).to match_array([
-      "cache_read.active_support",
-      "cache_write.active_support",
-      "cache_fetch_hit.active_support"
-    ])
+    expect(config.log_events).to contain_exactly("cache_read.active_support", "cache_write.active_support",
+                                                 "cache_fetch_hit.active_support")
   end
 
   it "allows customizing log events" do

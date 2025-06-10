@@ -1,5 +1,134 @@
+require:
+  - rubocop-rspec
+
 AllCops:
-  TargetRubyVersion: 3.0
+  NewCops: enable
+  TargetRubyVersion: 3.2
+  Exclude:
+    - 'db/**/*'
+    - 'config/**/*'
+    - 'script/**/*'
+    - 'bin/**/*'
+    - 'vendor/**/*'
+    - 'spec/dummy/**/*'
+  SuggestExtensions: false
+
+Style/Documentation:
+  Enabled: false
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/MethodLength:
+  Max: 25
+
+Metrics/AbcSize:
+  Max: 30
+
+Metrics/ClassLength:
+  Max: 150
+
+Metrics/ModuleLength:
+  Max: 150
+
+Layout/LineLength:
+  Max: 120
+
+# Desabilitar cops do Capybara que não são necessários
+Capybara/RSpec/PredicateMatcher:
+  Enabled: false
+
+Capybara/CurrentPathExpectation:
+  Enabled: false
+
+Capybara/MatchStyle:
+  Enabled: false
+
+Capybara/NegationMatcher:
+  Enabled: false
+
+Capybara/SpecificActions:
+  Enabled: false
+
+Capybara/SpecificFinders:
+  Enabled: false
+
+Capybara/SpecificMatcher:
+  Enabled: false
+
+Capybara/VisibilityMatcher:
+  Enabled: false
+
+# Ajustar configurações do RSpec
+RSpec/ExampleLength:
+  Max: 10
+
+RSpec/MultipleExpectations:
+  Max: 3
+
+RSpec/MessageSpies:
+  EnforcedStyle: have_received
+
+RSpec/DescribeClass:
+  Enabled: false
+
+RSpec/BeforeAfterAll:
+  Enabled: false
+
+RSpec/LeakyConstantDeclaration:
+  Enabled: false
+
+RSpec/MultipleDescribes:
+  Enabled: false
+
+# Desabilitar cops do FactoryBot que não são necessários
+FactoryBot/AttributeDefinedStatically:
+  Enabled: false
+
+FactoryBot/ConsistentParenthesesStyle:
+  Enabled: false
+
+FactoryBot/CreateList:
+  Enabled: false
+
+FactoryBot/FactoryClassName:
+  Enabled: false
+
+FactoryBot/FactoryNameStyle:
+  Enabled: false
+
+FactoryBot/SyntaxMethods:
+  Enabled: false
+
+# Desabilitar cops do Rails que não são necessários
+RSpecRails/AvoidSetupHook:
+  Enabled: false
+
+RSpecRails/HaveHttpStatus:
+  Enabled: false
+
+RSpecRails/HttpStatus:
+  Enabled: false
+
+RSpecRails/InferredSpecType:
+  Enabled: false
+
+RSpecRails/MinitestAssertions:
+  Enabled: false
+
+RSpecRails/NegationBeValid:
+  Enabled: false
+
+RSpecRails/TravelAround:
+  Enabled: false
+
+# Desabilitar cops do Gemspec
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+Gemspec/RequiredRubyVersion:
+  Enabled: false
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes

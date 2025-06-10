@@ -27,9 +27,9 @@ module Rails
         @cache = cache
       end
 
-      def read(key, **options)
+      def read(key, **)
         start_time = Time.now
-        value = @cache.read(key, **options)
+        value = @cache.read(key, **)
         duration = ((Time.now - start_time) * 1000).round(2)
         log_cache_event(
           event: value.nil? ? "cache_read.miss" : "cache_read.hit",
@@ -40,9 +40,9 @@ module Rails
         value
       end
 
-      def write(key, value, **options)
+      def write(key, value, **)
         start_time = Time.now
-        result = @cache.write(key, value, **options)
+        result = @cache.write(key, value, **)
         duration = ((Time.now - start_time) * 1000).round(2)
         log_cache_event(
           event: "cache_write",
@@ -53,9 +53,9 @@ module Rails
         result
       end
 
-      def delete(key, **options)
+      def delete(key, **)
         start_time = Time.now
-        result = @cache.delete(key, **options)
+        result = @cache.delete(key, **)
         duration = ((Time.now - start_time) * 1000).round(2)
         log_cache_event(
           event: "cache_delete",
@@ -65,9 +65,9 @@ module Rails
         result
       end
 
-      def exist?(key, **options)
+      def exist?(key, **)
         start_time = Time.now
-        exists = @cache.exist?(key, **options)
+        exists = @cache.exist?(key, **)
         duration = ((Time.now - start_time) * 1000).round(2)
         log_cache_event(
           event: "cache_exist",
@@ -78,12 +78,12 @@ module Rails
         exists
       end
 
-      def fetch(key, **options)
+      def fetch(key, **)
         start_time = Time.now
-        value = @cache.read(key, **options)
+        value = @cache.read(key, **)
         if value.nil?
           value = yield
-          @cache.write(key, value, **options)
+          @cache.write(key, value, **)
           duration = ((Time.now - start_time) * 1000).round(2)
           log_cache_event(
             event: "cache_fetch.miss",

@@ -14,7 +14,7 @@ module Rails
           case name
           when "cache_read.active_support"
             hit = payload[:hit]
-            Debugger.log "#{hit ? 'HIT' : 'MISS'} key: #{key} (#{duration}ms)"
+            Debugger.log "#{hit ? "HIT" : "MISS"} key: #{key} (#{duration}ms)"
           when "cache_write.active_support"
             Debugger.log "WRITE key: #{key} (#{duration}ms)"
           when "cache_fetch_hit.active_support"
@@ -30,4 +30,4 @@ module Rails
       end
     end
   end
-end 
+end
