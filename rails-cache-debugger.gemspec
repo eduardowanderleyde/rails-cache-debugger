@@ -58,13 +58,4 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "pry-highlight", "~> 0.1"
   spec.add_development_dependency "pry-macro", "~> 1.0"
   spec.add_development_dependency "pry-rails", "~> 0.3"
-  spec.add_development_dependency "pry-rescue", "~> 1.5"
-  spec.add_development_dependency "pry-stack_explorer", "~> 0.6"
-  spec.add_development_dependency "pry-theme", "~> 1.2"
-  spec.add_development_dependency "pry-remote", "~> 0.1"
-  spec.add_development_dependency "pry-nav", "~> 1.0"
-  spec.add_development_dependency "pry-coolline", "~> 0.2"
-  spec.add_development_dependency "pry-highlight", "~> 0.1"
-  spec.add_development_dependency "pry-macro", "~> 1.0"
-  spec.add_development_dependency "pry-rails", "~> 0.3"
 end
