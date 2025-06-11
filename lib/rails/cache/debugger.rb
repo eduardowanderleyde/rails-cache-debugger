@@ -141,16 +141,17 @@ module Rails
 
       # Fetches a value from the cache or executes the block if not found.
       # @param key [String] The cache key to fetch
+      # @param *args [Array] Additional positional arguments (ex: options hash)
       # @param **options [Hash] Additional cache options
       # @yield The block to execute if key is not found
       # @return [Object] The cached value or the result of the block
       # @raise [ActiveSupport::Cache::Store::Error] If the cache operation fails
-      def fetch(key, **options)
+      def fetch(key, *args, **options, &block)
         measure_operation("fetch", key) do
-          value = @cache.read(key, **options)
+          value = @cache.read(key, *args, **options)
           if value.nil?
-            value = yield
-            @cache.write(key, value, **options)
+            value = block.call if block
+            @cache.write(key, value, *args, **options)
             log_cache_event(
               event: "cache_fetch.miss",
               key: key,
