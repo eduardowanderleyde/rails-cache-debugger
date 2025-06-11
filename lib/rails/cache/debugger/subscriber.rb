@@ -1,3 +1,4 @@
+# lib/rails/cache/debugger/subscriber.rb
 # frozen_string_literal: true
 
 require "active_support/notifications"
@@ -5,132 +6,61 @@ require "active_support/notifications"
 module Rails
   module Cache
     class Debugger
-      # Subscriber class for handling cache events.
-      # Manages event subscriptions and notifications.
+      # Subscriber for both ActiveSupport and debugger notifications
       class Subscriber
-        # Creates a new subscriber instance.
         def initialize
-          @subscribers = []
+          @subscriptions = []
         end
 
-        # Subscribes to cache events within the block.
-        # @yield The block to execute while subscribed
-        # @return [Object] The result of the block
+        # Integration: subscribe to debugger instrumented events
         def subscribe
-          subscribe_to_events
+          events = %w[
+            cache_debugger.cache_write
+            cache_debugger.cache_read.miss
+            cache_debugger.cache_read.hit
+            cache_debugger.cache_delete
+            cache_debugger.cache_exist
+            cache_debugger.cache_fetch.miss
+            cache_debugger.cache_fetch.hit
+          ]
+          events.each do |event|
+            sub = ActiveSupport::Notifications.subscribe(event) do |name, _st, _fn, _id, payload|
+              # Determine type: last segment or after 'cache_'
+              raw = name.split(".").last
+              raw = raw.sub(/^cache_/, "")
+              type = raw.upcase
+              Debugger.log("#{type} key: #{payload[:key]}")
+            end
+            @subscriptions << sub
+          end
           yield
         ensure
-          unsubscribe_from_events
+          @subscriptions.each { |sub| ActiveSupport::Notifications.unsubscribe(sub) }
+          @subscriptions.clear
         end
 
-        private
-
-        # Subscribes to all configured cache events.
-        # @return [void]
-        def subscribe_to_events
-          Rails::Cache::Debugger.configuration.log_events.each do |event|
-            subscriber = ActiveSupport::Notifications.subscribe(event) do |*args|
-              handle_event(event, *args)
-            end
-            @subscribers << subscriber
-          end
-        end
-
-        # Unsubscribes from all cache events.
-        # @return [void]
-        def unsubscribe_from_events
-          @subscribers.each do |subscriber|
-            ActiveSupport::Notifications.unsubscribe(subscriber)
-          end
-          @subscribers.clear
-        end
-
-        # Handles a cache event.
-        # @param event [String] The event name
-        # @param start_time [Time] The start time of the event
-        # @param end_time [Time] The end time of the event
-        # @param id [String] The event ID
-        # @param payload [Hash] The event payload
-        # @return [void]
-        def handle_event(event, start_time, end_time, id, payload)
-          return unless Rails::Cache::Debugger.configuration.enabled
+        # Formatting: handle ActiveSupport cache events
+        def call(name, start_time, end_time, _id, payload)
+          return unless Debugger.configuration.enabled
 
           duration = ((end_time - start_time) * 1000).round(2)
-          details = payload.merge(duration: duration)
-
-          if Rails::Cache::Debugger.configuration.on_event
-            Rails::Cache::Debugger.configuration.on_event.call(event, details)
-          end
-
-          log_event(event, details)
-        end
-
-        # Logs a cache event.
-        # @param event [String] The event name
-        # @param details [Hash] The event details
-        # @return [void]
-        def log_event(event, details)
-          return if Rails::Cache::Debugger.configuration.log_filter &&
-                   !Rails::Cache::Debugger.configuration.log_filter.call(event, details)
-
-          message = format_event_message(event, details)
-          Rails::Cache::Debugger.log(message)
-        end
-
-        # Formats an event message.
-        # @param event [String] The event name
-        # @param details [Hash] The event details
-        # @return [String] The formatted message
-        def format_event_message(event, details)
-          case Rails::Cache::Debugger.configuration.log_format
-          when :json
-            format_json_message(event, details)
-          else
-            format_text_message(event, details)
-          end
-        end
-
-        # Formats a JSON event message.
-        # @param event [String] The event name
-        # @param details [Hash] The event details
-        # @return [String] The formatted JSON message
-        def format_json_message(event, details)
-          require "json"
-          {
-            event: event,
-            timestamp: Time.now.iso8601,
-            details: details
-          }.to_json
-        end
-
-        # Formats a text event message.
-        # @param event [String] The event name
-        # @param details [Hash] The event details
-        # @return [String] The formatted text message
-        def format_text_message(event, details)
-          key = details[:key]
-          duration = details[:duration]
-          type = event.split(".").last.upcase
-
-          case type
-          when "HIT"
-            "HIT key: #{key} (#{duration}ms)"
-          when "MISS"
-            "MISS key: #{key} (#{duration}ms)"
-          when "WRITE"
-            "WRITE key: #{key} (#{duration}ms)"
-          when "DELETE"
-            "DELETE key: #{key} (#{duration}ms)"
-          when "EXIST"
-            exists = details[:exists]
-            "EXIST key: #{key} (#{exists}) (#{duration}ms)"
-          when "FETCH_HIT"
-            "FETCH_HIT key: #{key} (#{duration}ms)"
-          when "FETCH_MISS"
-            "FETCH_MISS key: #{key} (#{duration}ms)"
-          else
-            "#{type} key: #{key} (#{duration}ms)"
-          end
+          type = case name
+                 when "cache_read.active_support"
+                   payload.fetch(:hit, false) ? "HIT" : "MISS"
+                 when "cache_write.active_support"
+                   "WRITE"
+                 when "cache_delete.active_support"
+                   "DELETE"
+                 when "cache_exist.active_support"
+                   "EXIST"
+                 when "cache_fetch_hit.active_support"
+                   "FETCH_HIT"
+                 when "cache_fetch_miss.active_support"
+                   "FETCH_MISS"
+                 else
+                   return
+                 end
+          Debugger.log("#{type} key: #{payload[:key]} (#{duration}ms)")
         end
       end
     end
