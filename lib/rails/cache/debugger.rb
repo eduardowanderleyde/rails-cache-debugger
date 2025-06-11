@@ -2,176 +2,223 @@
 
 require "active_support/cache"
 require "active_support/notifications"
+require "active_support/concern"
 require_relative "debugger/configuration"
 require_relative "debugger/subscriber"
 require_relative "debugger/railtie"
+require_relative "debugger/version"
 
 module Rails
   module Cache
-    # Classe principal para debug de operações de cache do Rails.
-    # Fornece métodos para monitorar e logar operações de cache.
+    # Main class for debugging Rails cache operations.
+    # Provides methods to monitor and log cache operations.
     #
-    # @example Uso básico
+    # @example Basic usage
     #   cache = Rails.cache
     #   debugger = Rails::Cache::Debugger.new(cache)
     #   debugger.read("key")
     #
-    # @example Configuração
+    # @example Configuration
     #   Rails::Cache::Debugger.configure do |config|
     #     config.enabled = true
     #     config.log_events = ["cache_read.active_support"]
     #   end
     class Debugger
+      include ActiveSupport::Configurable
+
       class << self
-        # Loga uma mensagem no console.
-        # @param message [String] A mensagem a ser logada
+        # Logs a message to the configured logger.
+        # @param message [String] The message to log
         # @return [void]
         def log(message)
-          puts message
+          return unless configuration.enabled
+
+          if configuration.logger
+            configuration.logger.info("[CacheDebugger] #{message}")
+          else
+            puts "[CacheDebugger] #{message}"
+          end
         end
 
-        # Retorna a configuração atual do debugger.
-        # @return [Configuration] A instância de configuração
+        # Returns the current debugger configuration.
+        # @return [Configuration] The current configuration instance
         def configuration
           @configuration ||= Configuration.new
         end
 
-        # Configura o debugger através de um bloco.
-        # @yield [config] O bloco de configuração
-        # @yieldparam config [Configuration] A instância de configuração
+        # Configures the debugger with the provided block.
+        # @yield [config] The configuration block
+        # @yieldparam config [Configuration] The configuration instance
         # @return [void]
         def configure
           yield configuration
         end
-      end
 
-      # Inicializa uma nova instância do debugger.
-      # @param cache [ActiveSupport::Cache::Store] A instância do cache a ser monitorada
-      def initialize(cache)
-        @cache = cache
-      end
-
-      # Lê um valor do cache e loga a operação.
-      # @param key [String] A chave a ser lida
-      # @param **options [Hash] Opções adicionais para a operação de cache
-      # @return [Object, nil] O valor lido do cache ou nil se não encontrado
-      # @example
-      #   debugger.read("user:1")
-      #   # => [CacheDebugger] HIT key: user:1 (0.45ms)
-      def read(key, **)
-        start_time = Time.now
-        value = @cache.read(key, **)
-        duration = ((Time.now - start_time) * 1000).round(2)
-        log_cache_event(
-          event: value.nil? ? "cache_read.miss" : "cache_read.hit",
-          key: key,
-          value: value,
-          duration: duration
-        )
-        value
-      end
-
-      # Escreve um valor no cache e loga a operação.
-      # @param key [String] A chave a ser escrita
-      # @param value [Object] O valor a ser armazenado
-      # @param **options [Hash] Opções adicionais para a operação de cache
-      # @return [Boolean] true se a operação foi bem sucedida
-      # @example
-      #   debugger.write("user:1", { name: "John" })
-      #   # => [CacheDebugger] WRITE key: user:1 (0.67ms)
-      def write(key, value, **)
-        start_time = Time.now
-        result = @cache.write(key, value, **)
-        duration = ((Time.now - start_time) * 1000).round(2)
-        log_cache_event(
-          event: "cache_write",
-          key: key,
-          value: value,
-          duration: duration
-        )
-        result
-      end
-
-      # Remove um valor do cache e loga a operação.
-      # @param key [String] A chave a ser removida
-      # @param **options [Hash] Opções adicionais para a operação de cache
-      # @return [Boolean] true se a operação foi bem sucedida
-      # @example
-      #   debugger.delete("user:1")
-      #   # => [CacheDebugger] DELETE key: user:1 (0.34ms)
-      def delete(key, **)
-        start_time = Time.now
-        result = @cache.delete(key, **)
-        duration = ((Time.now - start_time) * 1000).round(2)
-        log_cache_event(
-          event: "cache_delete",
-          key: key,
-          duration: duration
-        )
-        result
-      end
-
-      # Verifica se uma chave existe no cache e loga a operação.
-      # @param key [String] A chave a ser verificada
-      # @param **options [Hash] Opções adicionais para a operação de cache
-      # @return [Boolean] true se a chave existe
-      # @example
-      #   debugger.exist?("user:1")
-      #   # => [CacheDebugger] EXIST key: user:1 (0.23ms)
-      def exist?(key, **)
-        start_time = Time.now
-        exists = @cache.exist?(key, **)
-        duration = ((Time.now - start_time) * 1000).round(2)
-        log_cache_event(
-          event: "cache_exist",
-          key: key,
-          exists: exists,
-          duration: duration
-        )
-        exists
-      end
-
-      # Busca um valor do cache ou executa o bloco se não encontrado.
-      # @param key [String] A chave a ser buscada
-      # @param **options [Hash] Opções adicionais para a operação de cache
-      # @yield O bloco a ser executado se a chave não for encontrada
-      # @return [Object] O valor do cache ou o resultado do bloco
-      # @example
-      #   debugger.fetch("user:1") { User.find(1) }
-      #   # => [CacheDebugger] FETCH_HIT key: user:1 (0.45ms)
-      def fetch(key, **)
-        start_time = Time.now
-        value = @cache.read(key, **)
-        if value.nil?
-          value = yield
-          @cache.write(key, value, **)
-          duration = ((Time.now - start_time) * 1000).round(2)
-          log_cache_event(
-            event: "cache_fetch.miss",
-            key: key,
-            value: value,
-            duration: duration
-          )
-        else
-          duration = ((Time.now - start_time) * 1000).round(2)
-          log_cache_event(
-            event: "cache_fetch.hit",
-            key: key,
-            value: value,
-            duration: duration
-          )
+        # Returns the current version of the gem.
+        # @return [String] The current version
+        def version
+          VERSION
         end
-        value
+      end
+
+      # Creates a new debugger instance.
+      # @param cache [ActiveSupport::Cache::Store] The cache store to monitor
+      # @raise [ArgumentError] If cache is nil
+      def initialize(cache)
+        raise ArgumentError, "Cache store cannot be nil" if cache.nil?
+
+        @cache = cache
+        @subscriber = Subscriber.new
+      end
+
+      # Reads a value from the cache and logs the operation.
+      # @param key [String] The cache key to read
+      # @param **options [Hash] Additional cache options
+      # @return [Object, nil] The cached value or nil if not found
+      # @raise [ActiveSupport::Cache::Store::Error] If the cache operation fails
+      def read(key, **options)
+        measure_operation("read", key) do
+          value = @cache.read(key, **options)
+          log_cache_event(
+            event: value.nil? ? "cache_read.miss" : "cache_read.hit",
+            key: key,
+            value: value
+          )
+          value
+        end
+      end
+
+      # Writes a value to the cache and logs the operation.
+      # @param key [String] The cache key to write
+      # @param value [Object] The value to cache
+      # @param **options [Hash] Additional cache options
+      # @return [Boolean] true if the operation was successful
+      # @raise [ActiveSupport::Cache::Store::Error] If the cache operation fails
+      def write(key, value, **options)
+        measure_operation("write", key) do
+          result = @cache.write(key, value, **options)
+          log_cache_event(
+            event: "cache_write",
+            key: key,
+            value: value
+          )
+          result
+        end
+      end
+
+      # Deletes a value from the cache and logs the operation.
+      # @param key [String] The cache key to delete
+      # @param **options [Hash] Additional cache options
+      # @return [Boolean] true if the operation was successful
+      # @raise [ActiveSupport::Cache::Store::Error] If the cache operation fails
+      def delete(key, **options)
+        measure_operation("delete", key) do
+          result = @cache.delete(key, **options)
+          log_cache_event(
+            event: "cache_delete",
+            key: key
+          )
+          result
+        end
+      end
+
+      # Checks if a key exists in the cache and logs the operation.
+      # @param key [String] The cache key to check
+      # @param **options [Hash] Additional cache options
+      # @return [Boolean] true if the key exists
+      # @raise [ActiveSupport::Cache::Store::Error] If the cache operation fails
+      def exist?(key, **options)
+        measure_operation("exist?", key) do
+          exists = @cache.exist?(key, **options)
+          log_cache_event(
+            event: "cache_exist",
+            key: key,
+            exists: exists
+          )
+          exists
+        end
+      end
+
+      # Fetches a value from the cache or executes the block if not found.
+      # @param key [String] The cache key to fetch
+      # @param **options [Hash] Additional cache options
+      # @yield The block to execute if key is not found
+      # @return [Object] The cached value or the result of the block
+      # @raise [ActiveSupport::Cache::Store::Error] If the cache operation fails
+      def fetch(key, **options)
+        measure_operation("fetch", key) do
+          value = @cache.read(key, **options)
+          if value.nil?
+            value = yield
+            @cache.write(key, value, **options)
+            log_cache_event(
+              event: "cache_fetch.miss",
+              key: key,
+              value: value
+            )
+          else
+            log_cache_event(
+              event: "cache_fetch.hit",
+              key: key,
+              value: value
+            )
+          end
+          value
+        end
+      end
+
+      # Traces all cache operations within the block.
+      # @yield The block to trace
+      # @return [Object] The result of the block
+      def trace
+        return yield unless configuration.enabled
+
+        @subscriber.subscribe do
+          yield
+        end
       end
 
       private
 
-      # Loga um evento de cache usando ActiveSupport::Notifications.
-      # @param event [String] O nome do evento
-      # @param key [String] A chave do cache
-      # @param **details [Hash] Detalhes adicionais do evento
+      # Measures the duration of a cache operation.
+      # @param operation [String] The operation name
+      # @param key [String] The cache key
+      # @yield The operation to measure
+      # @return [Object] The result of the operation
+      def measure_operation(operation, key)
+        return yield unless configuration.enabled
+
+        start_time = Time.now
+        result = yield
+        duration = ((Time.now - start_time) * 1000).round(2)
+
+        if configuration.sampling_rate.nil? || rand <= configuration.sampling_rate
+          log_cache_event(
+            event: "cache_#{operation}",
+            key: key,
+            duration: duration
+          )
+        end
+
+        result
+      rescue ActiveSupport::Cache::Store::Error => e
+        log_cache_event(
+          event: "cache_#{operation}.error",
+          key: key,
+          error: e.message
+        )
+        raise
+      end
+
+      # Logs a cache event using ActiveSupport::Notifications.
+      # @param event [String] The event name
+      # @param key [String] The cache key
+      # @param **details [Hash] Additional event details
       # @return [void]
       def log_cache_event(event:, key:, **details)
+        return unless configuration.enabled
+        return if configuration.log_filter && !configuration.log_filter.call(event, details)
+
         ActiveSupport::Notifications.instrument(
           "cache_debugger.#{event}",
           { key: key }.merge(details)
