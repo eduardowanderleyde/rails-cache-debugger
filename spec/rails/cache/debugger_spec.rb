@@ -71,7 +71,7 @@ RSpec.describe Rails::Cache::Debugger do
   describe "#fetch" do
     it "logs cache fetch hit" do
       cache.write("test_key", "test_value")
-      debugger.fetch("test_key", "new_value")
+      debugger.fetch("test_key") { "new_value" }
       expect(debugger).to have_received(:log_cache_event).with(
         event: "cache_fetch.hit",
         key: "test_key",
@@ -81,7 +81,7 @@ RSpec.describe Rails::Cache::Debugger do
     end
 
     it "logs cache fetch miss and executes block" do
-      result = debugger.fetch("test_key", "new_value")
+      result = debugger.fetch("test_key") { "new_value" }
       expect(result).to eq("new_value")
       expect(debugger).to have_received(:log_cache_event).with(
         event: "cache_fetch.miss",
@@ -135,7 +135,7 @@ RSpec.describe Rails::Cache::Debugger do
     end
 
     it "propagates exception on fetch" do
-      expect { debugger.fetch("key", "value") }.to raise_error("Cache unavailable")
+      expect { debugger.fetch("key") { "value" } }.to raise_error("Cache unavailable")
     end
   end
 end
